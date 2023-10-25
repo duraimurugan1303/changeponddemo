@@ -1,0 +1,15 @@
+-- 6.1 List all the scientists' names, their projects' names, 
+    -- and the hours worked by that scientist on each project, 
+    -- in alphabetical order of project name, then scientist name.
+	SELECT S.Name AS Scientist_Name, P.Name AS Project_Name, p.Hours AS Hours_Worked
+	FROM Scientists S
+	JOIN AssignedTo A ON S.SSN = A.Scientist
+	JOIN Projects P ON A.Project = P.Code
+	ORDER BY P.Name, S.Name;
+
+-- 6.2 Select the project names which are not assigned yet
+
+	SELECT P.Name AS Project_Name
+	FROM Projects P
+	LEFT JOIN AssignedTo A ON P.Code = A.Project
+	WHERE p.code NOT IN(SELECT DISTINCT project from assignedto);

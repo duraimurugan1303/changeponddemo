@@ -1,0 +1,49 @@
+-- 5.1 Select the name of all the pieces. 
+
+	SELECT name FROM Pieces;
+
+-- 5.2  Select all the providers' data. 
+
+	SELECT * FROM Providers;
+
+-- 5.3 Obtain the average price of each piece (show only the piece code and the average price).
+
+	SELECT Pr.Piece AS piece_code, AVG(Pr.Price) AS average_price FROM Pieces P LEFT JOIN Provides Pr ON P.code = Pr.Piece GROUP BY P.code;
+
+-- 5.4  Obtain the names of all providers who supply piece 1.
+
+	SELECT Pr.name FROM Providers Pr JOIN Provides Prv ON Pr.code = Prv.Provider WHERE Prv.Piece = 1;
+
+-- 5.5 Select the name of pieces provided by provider with code "HAL".
+
+	SELECT Pieces.name FROM Pieces JOIN Provides ON Pieces.code = Provides.Piece JOIN Providers ON Provides.Provider = Providers.code WHERE Providers.code = 'HAL';
+
+-- 5.6 For each piece, find the most expensive offering of that piece and include the piece name, provider name, and price.
+ (note that there could be two providers who supply the same piece at the most expensive price).
+
+	SELECT P.name AS piece_name, Pr.name AS provider_name, PP.Price AS price
+	FROM Pieces P
+	JOIN (SELECT Provides.Piece AS piece_code,
+        MAX(Provides.Price) AS max_price
+    	FROM Provides
+    	GROUP BY Provides.Piece) AS MaxPrices ON P.code = MaxPrices.piece_code
+	JOIN Providers Pr ON MaxPrices.piece_code = Pr.code
+	JOIN Provides PP ON MaxPrices.piece_code = PP.Piece AND MaxPrices.max_price = PP.Price;
+
+-- 5.7 Add an entry to the database to indicate that "Skellington Supplies" (code "TNBC") will provide sprockets (code "1") for 7 cents each.
+
+	INSERT INTO Provides (Provider, Piece, Price)
+	VALUES ('TNBC', 1, 7);
+
+-- 5.8 Increase all prices by one cent.
+
+	UPDATE Provides SET Price = Price + 1;
+
+-- 5.9 Update the database to reflect that "Susan Calvin Corp." (code "RBT") will not supply bolts (code 4).
+
+	DELETE FROM Provides WHERE Provider = 'RBT' AND Piece = 4;
+
+-- 5.10 Update the database to reflect that "Susan Calvin Corp." (code "RBT") will not supply any pieces 
+ (the provider should still remain in the database).
+
+	DELETE FROM Provides WHERE Provider = 'RBT';

@@ -1,0 +1,107 @@
+-- 8.1 Obtain the names of all physicians that have performed a medical procedure they have never been certified to perform.
+
+		SELECT DISTINCT P.Name
+			FROM Physician P
+		WHERE NOT EXISTS (SELECT * FROM Trained_In T WHERE T.Physician = P.EmployeeID
+    			AND T.Treatment NOT IN (
+        	SELECT U.Procedures
+        		FROM Undergoes U
+        	WHERE U.Physician = P.EmployeeID ));
+
+-- 8.2 Same as the previous query, but include the following information in the results: Physician name, name of procedure, date when the procedure was carried out, name of the patient the procedure was carried out on.
+
+		SELECT DISTINCT P.Name AS PhysicianName, PR.Name AS ProcedureName, U.DateUndergoes AS ProcedureDate
+, PA.Name AS PatientName
+			FROM Physician P JOIN Undergoes U ON U.Physician = P.EmployeeID
+		JOIN Procedures PR ON U.Procedures = PR.Code
+		JOIN Patient PA ON U.Patient = PA.SSN
+		WHERE PR.Code NOT IN (SELECT t.treatment FROM Trained_In T
+		    WHERE T.Physician = P.EmployeeID
+		    AND T.Treatment NOT IN (SELECT U.Procedures FROM Undergoes U
+	        WHERE U.Physician = P.EmployeeID );
+
+
+-- 8.3 Obtain the names of all physicians that have performed a medical procedure that they are certified to perform, but such that the procedure was done at a date (Undergoes.Date) after the physician's certification expired (Trained_In.CertificationExpires).
+
+	SELECT P.Name AS PhysicianName
+	FROM Physician P
+	JOIN Undergoes U ON U.Physician = P.EmployeeID
+	JOIN Trained_In T ON T.Physician = P.EmployeeID AND U.Procedures = T.Treatment
+	WHERE U.DateUndergoes > T.CertificationExpires;
+
+-- 8.4 Same as the previous query, but include the following information in the results: Physician name, name of procedure, date when the procedure was carried out, name of the patient the procedure was carried out on, and date when the certification expired.
+
+	SELECT P.Name AS PhysicianName, Pr.Name AS ProcedureName, U.DateUndergoes AS ProcedureDate, Pt.Name AS PatientName, T.CertificationExpires AS CertificationExpiration
+	FROM Physician P
+	JOIN Undergoes U ON U.Physician = P.EmployeeID
+	JOIN Trained_In T ON T.Physician = P.EmployeeID AND U.Procedures = T.Treatment
+	JOIN Patient Pt ON U.Patient = Pt.SSN
+	JOIN Procedures Pr ON U.Procedures = Pr.Code
+	WHERE U.DateUndergoes > T.CertificationExpires;
+
+-- 8.5 Obtain the information for appointments where a patient met with a physician other than his/her primary care physician. Show the following information: Patient name, physician name, nurse name (if any), start and end time of appointment, examination room, and the name of the patient's primary care physician.
+
+	SELECT
+    	P.Name AS PatientName,
+   	 Ph.Name AS PhysicianName,
+  	  N.Name AS NurseName,
+   	   A.Start AS StartTime,
+  	    A.End AS EndTime,
+	     A.ExaminationRoom,
+    	PCP.Name AS PrimaryCarePhysician
+	FROM Appointment A
+	JOIN Patient P ON A.Patient = P.SSN
+	JOIN Physician Ph ON A.Physician = Ph.EmployeeID
+	LEFT JOIN Nurse N ON A.PrepNurse = N.EmployeeID
+	JOIN Physician PCP ON P.PCP = PCP.EmployeeID
+	WHERE A.Physician != P.PCP;
+
+-- 8.6 The Patient field in Undergoes is redundant, since we can obtain it from the Stay table. There are no constraints in force to prevent inconsistencies between these two tables. More specifically, the Undergoes table may include a row where the patient ID does not match the one we would obtain from the Stay table through the Undergoes.Stay foreign key. Select all rows from Undergoes that exhibit this inconsistency.
+
+	SELECT U.* FROM Undergoes U
+	LEFT JOIN Stay S ON U.Stay = S.StayID
+	WHERE U.Patient != S.Patient
+	OR U.Patient IS NULL
+	OR S.Patient IS NULL;
+
+-- 8.7 Obtain the names of all the nurses who have ever been on call for room 123.
+
+	SELECT DISTINCT N.Name
+	FROM Nurse N
+	JOIN On_Call OC ON N.EmployeeID = OC.Nurse
+	JOIN Room R ON OC.BlockFloor = R.BlockFloor AND OC.BlockCode = R.BlockCode
+	WHERE R.RoomNumber = 123;
+
+-- 8.8 The hospital has several examination rooms where appointments take place. Obtain the number of appointments that have taken place in each examination room.
+
+	SELECT ExaminationRoom, COUNT(*) AS NumberOfAppointments
+	FROM Appointment
+	GROUP BY ExaminationRoom
+	ORDER BY NumberOfAppointments DESC;
+
+-- 8.9 Obtain the names of all patients (also include, for each patient, the name of the patient's primary care physician), such that \emph{all} the following are true:
+    -- The patient has been prescribed some medication by his/her primary care physician.
+    -- The patient has undergone a procedure with a cost larger that $5,000
+    -- The patient has had at least two appointment where the nurse who prepped the appointment was a registered nurse.
+    -- The patient's primary care physician is not the head of any department.
+
+	SELECT DISTINCT P.Name AS PatientName, PCP.Name AS PrimaryCarePhysician
+	FROM Patient AS P
+	JOIN Physician AS PCP ON P.PCP = PCP.EmployeeID
+	WHERE P.SSN IN (SELECT DISTINCT Patient FROM Prescribes
+    	WHERE Medication IN (SELECT Code FROM Medication
+        WHERE Brand IS NOT NULL )) AND P.SSN IN (
+    	SELECT DISTINCT Patient FROM Undergoes WHERE DateUndergoes IN (
+        SELECT DateUndergoes
+        FROM Undergoes
+        WHERE Procedures IN (
+            SELECT Code
+            FROM Procedures
+            WHERE Cost > 5000
+        )
+        GROUP BY DateUndergoes
+        HAVING COUNT(*) >= 2 ))
+	AND PCP.EmployeeID IN (
+    	SELECT Head
+    	FROM Department
+  	  WHERE Head IS NOT NULL);
